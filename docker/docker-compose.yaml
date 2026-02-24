@@ -1,0 +1,16 @@
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: lingua_backend
+    restart: unless-stopped
+    networks: [web]
+    environment:
+      DATABASE_URL: postgresql://lingua:lingua@postgres:5432/lingua
+    ports:
+      - "3001:3000"
+
+networks:
+  web:
+    external: true
