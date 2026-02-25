@@ -15,20 +15,6 @@ services:
     ports:
       - "3010:3000"
 
-  migrate:
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile
-    container_name: lingua_migrate
-    networks: [ web ]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgresql://lingua:lingua@postgres:5432/lingua
-    command: [ "sh", "-lc", "npm run db:migrate" ]
-    restart: "no"
-
 networks:
   web:
     external: true
