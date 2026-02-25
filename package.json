@@ -18,8 +18,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:generate": "npx drizzle-kit generate",
+    "db:migrate": "npx drizzle-kit migrate"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -37,10 +37,7 @@
     "passport-jwt": "^4.0.1",
     "pg": "^8.18.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1",
-
-    "drizzle-orm": "^0.45.1",
-    "pg": "^8.x"
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -68,8 +65,7 @@
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0",
-    "drizzle-kit": "^0.31.9"
+    "typescript-eslint": "^8.20.0"
   },
   "jest": {
     "moduleFileExtensions": [
