@@ -10,11 +10,11 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  app.enableCors({
-      origin: config.get<string>('CORS_ORIGIN'),
-      credentials: true,
-
-  });
+  // app.enableCors({
+  //     origin: config.get<string>('CORS_ORIGIN'),
+  //     credentials: true,
+  //
+  // });
 
   app.useGlobalPipes(new ValidationPipe({whitelist: true, transform: true}));
   await app.listen(process.env.PORT ?? 3000);

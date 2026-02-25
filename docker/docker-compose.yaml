@@ -8,6 +8,10 @@ services:
     networks: [web]
     environment:
       DATABASE_URL: postgresql://lingua:lingua@postgres:5432/lingua
+      JWT_ACCESS_SECRET: "csomesome"
+      JWT_REFRESH_SECRET: "somesome"
+      ACCESS_TOKEN_TTL: "15m"
+      REFRESH_TOKEN_TTL_DAYS: "30"
     ports:
       - "3010:3000"
 
