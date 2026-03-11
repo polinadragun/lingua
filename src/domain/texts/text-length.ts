@@ -1,0 +1,1 @@
+export type TextLength = 'short' | 'medium' | 'long';

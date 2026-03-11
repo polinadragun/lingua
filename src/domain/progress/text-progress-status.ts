@@ -1,0 +1,1 @@
+export type TextProgressStatus = 'not_started' | 'in_progress' | 'completed';

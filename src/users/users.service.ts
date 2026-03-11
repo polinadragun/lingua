@@ -1,34 +1,29 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { eq } from 'drizzle-orm';
-import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { DRIZZLE_DB } from '../db/db.module';
-import { users } from '../db/schema';
-
-export type Level = 'A1' | 'A2' | 'B1' | 'B2' | 'C1' | 'C2';
+import { Injectable } from '@nestjs/common';
+import { Level } from '../domain/common/level';
+import { User } from './user.entity';
+import { UsersRepository } from '../repositories/users.repository';
 
 @Injectable()
 export class UsersService {
-    constructor(@Inject(DRIZZLE_DB) private db: NodePgDatabase) {}
+    constructor(private readonly usersRepository: UsersRepository) {}
 
-    async findByEmail(email: string) {
-        const rows = await this.db.select().from(users).where(eq(users.email, email)).limit(1);
-        return rows[0] ?? null;
+    findByEmail(email: string): Promise<User | null> {
+        return this.usersRepository.findByEmail(email);
     }
 
-    async findById(id: string) {
-        const rows = await this.db.select().from(users).where(eq(users.id, id)).limit(1);
-        return rows[0] ?? null;
+    findById(id: string): Promise<User | null> {
+        return this.usersRepository.findById(id);
     }
 
-    async create(email: string, passwordHash: string, level: Level = 'A1') {
-        const rows = await this.db
-            .insert(users)
-            .values({ email, passwordHash, level })
-            .returning();
-        return rows[0];
+    create(email: string, passwordHash: string, level: Level = 'A1'): Promise<User> {
+        return this.usersRepository.create({ email, passwordHash, level });
     }
 
-    toPublicUser(u: { email: string; level: Level }) {
-        return { email: u.email, level: u.level };
+    toPublicUser(user: User) {
+        return {
+            id: user.id,
+            email: user.email,
+            level: user.level,
+        };
     }
 }
