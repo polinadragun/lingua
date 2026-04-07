@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: lingua_postgres_local
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lingua
+      POSTGRES_USER: lingua
+      POSTGRES_PASSWORD: lingua
+    ports:
+      - "5432:5432"
+    volumes:
+      - lingua_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lingua -d lingua"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  lingua_postgres_data:

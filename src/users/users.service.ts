@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { Level } from '../domain/common/level';
 import { User } from './user.entity';
 import { UsersRepository } from '../repositories/users.repository';
@@ -25,5 +26,20 @@ export class UsersService {
             email: user.email,
             level: user.level,
         };
+    }
+
+    /** Creates a DB user row for mock-auth email so texts/profile can persist without real registration. */
+    async ensureUserByEmail(email: string): Promise<User> {
+        const normalized = email.trim().toLowerCase();
+        const existing = await this.usersRepository.findByEmail(normalized);
+        if (existing) {
+            return existing;
+        }
+        const passwordHash = await bcrypt.hash(`dev-placeholder-${normalized}-${Date.now()}`, 10);
+        return this.usersRepository.create({
+            email: normalized,
+            passwordHash,
+            level: 'A1',
+        });
     }
 }

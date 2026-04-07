@@ -1,5 +1,6 @@
 import { Level } from '../common/level';
 import { TextLength } from './text-length';
+import { TextLanguage } from './text-language';
 import { TextQuestion } from './text-question.entity';
 import { TextSentence } from './text-sentence.entity';
 import { TextTopic } from './text-topic';
@@ -13,7 +14,9 @@ type TextProps = {
     level: Level;
     topic: TextTopic;
     length: TextLength;
+    language: TextLanguage;
     audioUrl: string | null;
+    authorEmail: string | null;
     isPublished: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -64,8 +67,16 @@ export class TextEntity {
         return this.props.length;
     }
 
+    get language() {
+        return this.props.language;
+    }
+
     get audioUrl() {
         return this.props.audioUrl;
+    }
+
+    get authorEmail() {
+        return this.props.authorEmail;
     }
 
     get isPublished() {

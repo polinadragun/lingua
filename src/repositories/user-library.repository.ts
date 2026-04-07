@@ -77,6 +77,12 @@ export class UserLibraryRepository {
         return rows[0] ? UserLibraryMapper.toProgressDomain(rows[0]) : null;
     }
 
+    async clearProgress(userId: string, textId: string): Promise<void> {
+        await this.db
+            .delete(userTextProgress)
+            .where(and(eq(userTextProgress.userId, userId), eq(userTextProgress.textId, textId)));
+    }
+
     async upsertProgress(params: {
         userId: string;
         textId: string;
@@ -177,6 +183,80 @@ export class UserLibraryRepository {
             .where(eq(userLearnedWords.userId, userId));
 
         return rows[0]?.count ?? 0;
+    }
+
+    async isWordLearned(userId: string, textWordId: string): Promise<boolean> {
+        const rows = await this.db
+            .select()
+            .from(userLearnedWords)
+            .where(and(eq(userLearnedWords.userId, userId), eq(userLearnedWords.textWordId, textWordId)))
+            .limit(1);
+
+        return Boolean(rows[0]);
+    }
+
+    async findWordByTextAndKey(textId: string, key: string): Promise<{
+        id: string;
+        key: string;
+        displayWord: string;
+        translation: string;
+        transcription: string;
+        example: string;
+    } | null> {
+        const rows = await this.db
+            .select({
+                id: textWords.id,
+                key: textWords.key,
+                displayWord: textWords.displayWord,
+                translation: textWords.translation,
+                transcription: textWords.transcription,
+                example: textWords.example,
+            })
+            .from(textWords)
+            .where(and(eq(textWords.textId, textId), eq(textWords.key, key)))
+            .limit(1);
+
+        return rows[0] ?? null;
+    }
+
+    async findLearnedWordKeysByUserAndText(userId: string, textId: string): Promise<string[]> {
+        const rows = await this.db
+            .select({ key: textWords.key })
+            .from(userLearnedWords)
+            .innerJoin(textWords, eq(userLearnedWords.textWordId, textWords.id))
+            .where(and(eq(userLearnedWords.userId, userId), eq(textWords.textId, textId)));
+
+        return rows.map((row) => row.key);
+    }
+
+    async findAllLearnedWordsByUserId(userId: string): Promise<
+        Array<{
+            textSlug: string;
+            key: string;
+            word: string;
+            translation: string;
+            transcription: string;
+            example: string;
+            learnedAt: Date;
+        }>
+    > {
+        const rows = await this.db
+            .select({
+                textSlug: texts.slug,
+                key: textWords.key,
+                word: textWords.displayWord,
+                translation: textWords.translation,
+                transcription: textWords.transcription,
+                example: textWords.example,
+                learnedAt: userLearnedWords.learnedAt,
+            })
+            .from(userLearnedWords)
+            .innerJoin(textWords, eq(userLearnedWords.textWordId, textWords.id))
+            .innerJoin(texts, eq(textWords.textId, texts.id))
+            .where(eq(userLearnedWords.userId, userId))
+            .orderBy(asc(userLearnedWords.learnedAt));
+
+        return rows;
     }
 
     async findLearnedWordsByUserAndText(userId: string, textId: string): Promise<UserLearnedWord[]> {

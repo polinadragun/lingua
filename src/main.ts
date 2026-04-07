@@ -10,14 +10,16 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  // app.enableCors({
-  //     origin: config.get<string>('CORS_ORIGIN'),
-  //     credentials: true,
-  //
-  // });
+  const corsOrigin =
+    config.get<string>('CORS_ORIGIN') ?? 'http://localhost:3000';
+  app.enableCors({
+    origin: corsOrigin,
+    credentials: true,
+  });
 
   app.useGlobalPipes(new ValidationPipe({whitelist: true, transform: true}));
-  await app.listen(process.env.PORT ?? 3000);
+  const port = Number(process.env.PORT) || 3001;
+  await app.listen(port);
 
 }
 bootstrap();

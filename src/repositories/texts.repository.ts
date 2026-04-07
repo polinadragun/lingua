@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, or, sql, type SQL } from 'drizzle-orm';
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { DRIZZLE_DB } from '../db/db.module';
 import {
@@ -10,6 +10,7 @@ import {
 } from '../db/schema';
 import { Level } from '../domain/common/level';
 import { TextLength } from '../domain/texts/text-length';
+import { TextLanguage } from '../domain/texts/text-language';
 import { TextTopic } from '../domain/texts/text-topic';
 import { TextEntity } from '../domain/texts/text.entity';
 import { TextQuestion } from '../domain/texts/text-question.entity';
@@ -22,14 +23,20 @@ type FindCatalogParams = {
     level?: Level;
     topic?: TextTopic;
     length?: TextLength;
+    language?: TextLanguage;
+    authorEmail?: string;
     isPublished?: boolean;
+    sortBy?: 'createdAt' | 'title' | 'level' | 'topic' | 'length';
+    sortOrder?: 'asc' | 'desc';
+    page?: number;
+    limit?: number;
 };
 
 @Injectable()
 export class TextsRepository {
     constructor(@Inject(DRIZZLE_DB) private readonly db: NodePgDatabase) {}
 
-    async findCatalog(params: FindCatalogParams = {}): Promise<TextEntity[]> {
+    private buildCatalogConditions(params: FindCatalogParams = {}): SQL<unknown>[] {
         const conditions: SQL<unknown>[] = [];
 
         if (params.search?.trim()) {
@@ -37,7 +44,7 @@ export class TextsRepository {
 
             const searchCondition = or(
                 ilike(texts.title, pattern),
-                ilike(texts.description, pattern),
+                ilike(sql<string>`${texts.topic}::text`, pattern),
             );
 
             if (searchCondition) {
@@ -57,17 +64,62 @@ export class TextsRepository {
             conditions.push(eq(texts.length, params.length));
         }
 
+        if (params.language) {
+            conditions.push(eq(texts.language, params.language));
+        }
+
+        if (params.authorEmail?.trim()) {
+            conditions.push(eq(texts.authorEmail, params.authorEmail.trim()));
+        }
+
         if (typeof params.isPublished === 'boolean') {
             conditions.push(eq(texts.isPublished, params.isPublished));
         }
+
+        return conditions;
+    }
+
+    async findCatalog(params: FindCatalogParams = {}): Promise<TextEntity[]> {
+        const conditions = this.buildCatalogConditions(params);
+
+        const page = params.page && params.page > 0 ? params.page : 1;
+        const limit = params.limit && params.limit > 0 ? params.limit : 10;
+        const offset = (page - 1) * limit;
+
+        const sortBy = params.sortBy ?? 'createdAt';
+        const sortOrder = params.sortOrder ?? 'desc';
+
+        const sortColumnMap = {
+            createdAt: texts.createdAt,
+            title: texts.title,
+            level: texts.level,
+            topic: texts.topic,
+            length: texts.length,
+        };
+
+        const sortColumn = sortColumnMap[sortBy];
+        const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 
         const rows = await this.db
             .select()
             .from(texts)
             .where(conditions.length ? and(...conditions) : undefined)
-            .orderBy(asc(texts.createdAt));
+            .orderBy(orderBy)
+            .limit(limit)
+            .offset(offset);
 
         return rows.map((row) => TextsMapper.toTextDomain({ text: row }));
+    }
+
+    async countCatalog(params: FindCatalogParams = {}): Promise<number> {
+        const conditions = this.buildCatalogConditions(params);
+
+        const rows = await this.db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(texts)
+            .where(conditions.length ? and(...conditions) : undefined);
+
+        return rows[0]?.count ?? 0;
     }
 
     async findById(id: string): Promise<TextEntity | null> {
@@ -121,7 +173,9 @@ export class TextsRepository {
         level: Level;
         topic: TextTopic;
         length: TextLength;
+        language: TextLanguage;
         audioUrl?: string | null;
+        authorEmail?: string | null;
         isPublished?: boolean;
     }): Promise<TextEntity> {
         const rows = await this.db
@@ -133,12 +187,107 @@ export class TextsRepository {
                 level: params.level,
                 topic: params.topic,
                 length: params.length,
+                language: params.language,
                 audioUrl: params.audioUrl ?? null,
+                authorEmail: params.authorEmail ?? null,
                 isPublished: params.isPublished ?? true,
             })
             .returning();
 
         return TextsMapper.toTextDomain({ text: rows[0] });
+    }
+
+    async createTextFull(params: {
+        slug: string;
+        title: string;
+        description: string;
+        level: Level;
+        topic: TextTopic;
+        length: TextLength;
+        language: TextLanguage;
+        authorEmail?: string | null;
+        audioUrl?: string | null;
+        sentences: Array<{
+            orderIndex: number;
+            content: string;
+            startSeconds: number;
+            endSeconds: number;
+        }>;
+        words: Array<{
+            key: string;
+            displayWord: string;
+            translation: string;
+            transcription: string;
+            example: string;
+        }>;
+        questions: Array<{
+            orderIndex: number;
+            question: string;
+            answer: string;
+        }>;
+    }): Promise<TextEntity> {
+        await this.db.transaction(async (tx) => {
+            const inserted = await tx
+                .insert(texts)
+                .values({
+                    slug: params.slug,
+                    title: params.title,
+                    description: params.description,
+                    level: params.level,
+                    topic: params.topic,
+                    length: params.length,
+                    language: params.language,
+                    audioUrl: params.audioUrl ?? null,
+                    authorEmail: params.authorEmail ?? null,
+                    isPublished: true,
+                })
+                .returning();
+
+            const textId = inserted[0].id;
+
+            if (params.sentences.length) {
+                await tx.insert(textSentences).values(
+                    params.sentences.map((item) => ({
+                        textId,
+                        orderIndex: item.orderIndex,
+                        content: item.content,
+                        startSeconds: item.startSeconds,
+                        endSeconds: item.endSeconds,
+                    })),
+                );
+            }
+
+            if (params.words.length) {
+                await tx.insert(textWords).values(
+                    params.words.map((item) => ({
+                        textId,
+                        key: item.key,
+                        displayWord: item.displayWord,
+                        translation: item.translation,
+                        transcription: item.transcription,
+                        example: item.example,
+                    })),
+                );
+            }
+
+            if (params.questions.length) {
+                await tx.insert(textQuestions).values(
+                    params.questions.map((item) => ({
+                        textId,
+                        orderIndex: item.orderIndex,
+                        question: item.question,
+                        answer: item.answer,
+                    })),
+                );
+            }
+        });
+
+        const detailed = await this.findDetailedBySlug(params.slug);
+        if (!detailed) {
+            throw new Error('Failed to load created text');
+        }
+
+        return detailed;
     }
 
     async updateText(params: {
@@ -149,6 +298,7 @@ export class TextsRepository {
         level?: Level;
         topic?: TextTopic;
         length?: TextLength;
+        language?: TextLanguage;
         audioUrl?: string | null;
         isPublished?: boolean;
     }): Promise<TextEntity | null> {
@@ -161,6 +311,7 @@ export class TextsRepository {
                 ...(params.level !== undefined ? { level: params.level } : {}),
                 ...(params.topic !== undefined ? { topic: params.topic } : {}),
                 ...(params.length !== undefined ? { length: params.length } : {}),
+                ...(params.language !== undefined ? { language: params.language } : {}),
                 ...(params.audioUrl !== undefined ? { audioUrl: params.audioUrl } : {}),
                 ...(params.isPublished !== undefined ? { isPublished: params.isPublished } : {}),
                 updatedAt: new Date(),

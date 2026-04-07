@@ -56,6 +56,22 @@ export class AuthTokensRepository {
         return rows.map((row) => AuthMapper.toRefreshTokenDomain(row));
     }
 
+    async findActiveByTokenHash(tokenHash: string): Promise<RefreshToken | null> {
+        const rows = await this.db
+            .select()
+            .from(refreshTokens)
+            .where(
+                and(
+                    eq(refreshTokens.tokenHash, tokenHash),
+                    isNull(refreshTokens.revokedAt),
+                    gt(refreshTokens.expiresAt, new Date()),
+                ),
+            )
+            .limit(1);
+
+        return rows[0] ? AuthMapper.toRefreshTokenDomain(rows[0]) : null;
+    }
+
     async revokeById(id: string): Promise<void> {
         await this.db
             .update(refreshTokens)

@@ -17,6 +17,7 @@ import { sql } from 'drizzle-orm';
 export const levelEnum = pgEnum('level', ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']);
 export const textTopicEnum = pgEnum('text_topic', ['society', 'travel', 'technology']);
 export const textLengthEnum = pgEnum('text_length', ['short', 'medium', 'long']);
+export const textLanguageEnum = pgEnum('text_language', ['en', 'ch', 'fr', 'it', 'jp']);
 export const textProgressStatusEnum = pgEnum('text_progress_status', [
     'not_started',
     'in_progress',
@@ -68,7 +69,10 @@ export const texts = pgTable(
         level: levelEnum('level').notNull(),
         topic: textTopicEnum('topic').notNull(),
         length: textLengthEnum('length').notNull(),
+        language: textLanguageEnum('language').notNull().default('en'),
         audioUrl: text('audio_url'),
+        /** Set for user-created texts (mock auth email); seeded texts leave null */
+        authorEmail: text('author_email'),
         isPublished: boolean('is_published').notNull().default(true),
         createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
         updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -79,7 +83,9 @@ export const texts = pgTable(
         levelIdx: index('texts_level_idx').on(t.level),
         topicIdx: index('texts_topic_idx').on(t.topic),
         lengthIdx: index('texts_length_idx').on(t.length),
+        languageIdx: index('texts_language_idx').on(t.language),
         publishedIdx: index('texts_is_published_idx').on(t.isPublished),
+        authorEmailIdx: index('texts_author_email_idx').on(t.authorEmail),
         catalogFilterIdx: index('texts_catalog_filter_idx').on(t.level, t.topic, t.length, t.isPublished),
     }),
 );
