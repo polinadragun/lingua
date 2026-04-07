@@ -3,6 +3,7 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile
+      target: runtime
     container_name: lingua_backend
     restart: unless-stopped
     networks: [web]
