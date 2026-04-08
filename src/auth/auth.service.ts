@@ -160,10 +160,12 @@ export class AuthService {
     }
 
     private cookieBaseOptions() {
-        const secure =
-            this.config.get<string>('COOKIE_SECURE') === 'true' ||
-            process.env.NODE_ENV === 'production';
-        const sameSite = (this.config.get<string>('COOKIE_SAME_SITE') ?? 'lax') as 'lax' | 'strict' | 'none';
+        const secure = this.config.get<string>('COOKIE_SECURE') === 'true';
+        const sameSite = (this.config.get<string>('COOKIE_SAME_SITE') ?? 'lax') as
+            | 'lax'
+            | 'strict'
+            | 'none';
+
         return {
             httpOnly: true,
             secure,
